@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 public class KeycloakConfig {
     Keycloak keycloak;
 
-    private String serverUrl = "http://localhost:8080";
+    private String serverUrl = "http://localhost:8081";
     private String realm = "Project_PFA";
     private String client_id = "api-test";
     private String grantType = "password";
