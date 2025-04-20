@@ -15,33 +15,43 @@ import java.util.stream.Collectors;
 public class ChatAiService {
     private final ChatClient chatClient;
     private final VectorStore vectorStore;
+    private final SchoolAgentService schoolAgentService;
 
-    public ChatAiService(ChatClient.Builder builder, VectorStore vectorStore) {
+    public ChatAiService(ChatClient.Builder builder,
+                         VectorStore vectorStore,
+                         SchoolAgentService schoolAgentService) {
         this.chatClient = builder.build();
         this.vectorStore = vectorStore;
+        this.schoolAgentService = schoolAgentService;
     }
 
     public String ragChatClient(String question) {
-        // Step 1: Retrieve relevant documents
+        // 1. Recherche RAG
         List<Document> documents = vectorStore.similaritySearch(question);
-        if (documents.isEmpty()) {
-            return "AT AWA OR ssingh Myd tennit"; // Fallback if no context is found
+        String context = "";
+
+        if (!documents.isEmpty()) {
+            context = documents.stream()
+                    .map(Document::getFormattedContent)
+                    .collect(Collectors.joining("\n"));
+        } else {
+            // 2. Si RAG vide, utiliser l'agent
+            try {
+                context = schoolAgentService.getInformation(question);
+            } catch (Exception e) {
+                return "Désolé, je n'ai pas trouvé d'informations pertinentes.";
+            }
         }
 
-        // Step 2: Extract context
-        String context = documents.stream()
-                .map(Document::getFormattedContent)
-                .collect(Collectors.joining("\n"));
-
-        // Step 3: Create a strict prompt
+        // 3. Génération de la réponse
         String systemMessage = """
-                Answer the question **only** using the provided context.
-                If the answer is not in the context, respond with: "AT AWA OR ssingh Myd tennit".
+                Répondez en français en utilisant uniquement le contexte fourni.
+                Si l'information n'est pas dans le contexte, répondez : "Je ne dispose pas de ces informations."
 
-                Context:
+                Contexte :
                 {context}
 
-                Question:
+                Question :
                 {question}
                 """;
 
@@ -49,7 +59,6 @@ public class ChatAiService {
         Prompt prompt = promptTemplate.create(
                 Map.of("context", context, "question", question));
 
-        // Step 4: Get the response
         return chatClient.prompt(prompt)
                 .call()
                 .content();
