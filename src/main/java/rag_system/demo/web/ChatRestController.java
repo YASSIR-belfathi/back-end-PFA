@@ -7,24 +7,16 @@ import rag_system.demo.services.ChatAiService;
 
 @RestController
 @RequestMapping("/chat")
-
 public class ChatRestController {
-    private ChatAiService chatAiService;
+    private final ChatAiService chatAiService;
 
     public ChatRestController(ChatAiService chatAiService) {
         this.chatAiService = chatAiService;
     }
-@GetMapping("/ask")
+
+    @GetMapping("/ask")
     public String ask(String question) {
-        return chatAiService.ragChatClient(question);
+        // Changer ragChatClient en ragChatClientWithAgent
+        return chatAiService.ragChatClientWithAgent(question);
     }
-
-
-
-
-
-
-
-
-
 }

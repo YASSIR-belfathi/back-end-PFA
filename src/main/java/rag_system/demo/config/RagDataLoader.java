@@ -30,6 +30,11 @@ public class RagDataLoader {
     private Resource doc001;
     @Value("store-data-v1.json")
     private String storedoc;
+    String SystemPrompt = """
+            you will be asked to generate information about a given engineering school using actual data 
+            you report should include information about the school (name,city,branches,founded year)
+            your report should include a concise conclusion about the information of the school             
+            """;
     private JdbcClient jdbcClient;
     private VectorStore vectorStore;
     public RagDataLoader(JdbcClient jdbcClient, VectorStore vectorStore) {
