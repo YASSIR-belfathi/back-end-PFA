@@ -23,12 +23,12 @@ import java.util.List;
 @Component
 public class RagDataLoader {
 
-    private String pdfPath = "C:\\Users\\user\\Desktop\\projets_S3_TDI\\back-end-PFA\\src\\main\\resources\\docs\\TSP_presentation.pdf";
+    // Use classpath resource instead of hardcoded path
     @Value("classpath:/docs/TSP_presentation.pdf")
     private Resource pdfResource;
     @Value("classpath:/docs/TSP_presentation.pdf")
     private Resource doc001;
-    @Value("store-data-v1.json")
+    @Value("classpath:/store/store-data-v1.json")
     private String storedoc;
     String SystemPrompt = """
             you will be asked to generate information about a given engineering school using actual data 
@@ -106,30 +106,46 @@ public class RagDataLoader {
     @PostConstruct
     public void initStore() {
         try {
-            boolean isEmpty = jdbcClient.sql("SELECT COUNT(*) FROM vector_store")
-                    .query(Integer.class)
-                    .optional()
-                    .orElse(0) == 0;
+            // Try to check if the table is empty
+            boolean shouldLoadData = true;
+            try {
+                int count = jdbcClient.sql("SELECT COUNT(*) FROM vector_store")
+                        .query(Integer.class)
+                        .optional()
+                        .orElse(0);
 
-            if (isEmpty) {
+                // Only load data if the table is empty
+                shouldLoadData = (count == 0);
+            } catch (Exception e) {
+                // If there's an exception (likely table doesn't exist), we should load the data
+                System.out.println("Exception checking vector store table, assuming it needs to be created: " + e.getMessage());
+            }
+
+            if (shouldLoadData) {
                 loadPdfIntoVectorStore();
             }
         } catch (Exception e) {
+            System.err.println("Error initializing vector store: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Failed to initialize vector store", e);
         }
     }
 
     private void loadPdfIntoVectorStore() throws IOException {
-        File pdfFile = pdfResource.getFile();
-        PagePdfDocumentReader pdfReader = new PagePdfDocumentReader(new FileSystemResource(pdfFile));
+        // Use the resource directly instead of converting to a File
+        PagePdfDocumentReader pdfReader = new PagePdfDocumentReader(pdfResource);
         List<Document> documents = pdfReader.get();
 
         TextSplitter splitter = new TokenTextSplitter();
-        List<Document> chunks = splitter.split(documents);
+
+        // Process documents individually to avoid sorting issues that might cause comparator contract violations
+        List<Document> chunks = new java.util.ArrayList<>();
+        for (Document doc : documents) {
+            List<Document> docChunks = splitter.split(java.util.Collections.singletonList(doc));
+            chunks.addAll(docChunks);
+        }
 
         vectorStore.accept(chunks);
         System.out.println("Loaded " + chunks.size() + " chunks into vector store.");
     }
 }
-
-

@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 
 @SpringBootApplication
-@EntityScan("rag_system.demo.user")
+@EntityScan("rag_system.demo")
 public class DemoApplication {
 
 	public static void main(String[] args) {

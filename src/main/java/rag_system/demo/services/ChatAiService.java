@@ -44,17 +44,20 @@ public class ChatAiService {
         String systemPrompt = """
                 Vous êtes un assistant spécialisé sur l'ENSA de Beni Mellal.
                 Répondez en français en suivant ces règles prioritaires:
-                
+
                 1. Si le contexte RAG contient l'information, utilisez-la pour répondre.
-                2. Si l'information n'est pas dans le contexte RAG, utilisez la fonction 'webSearchEnsaBm'
+                2. Si l'information n'est pas dans le contexte RAG et si le modèle le permet, utilisez la fonction 'webSearchEnsaBm'
                    pour rechercher directement sur le site web de l'école.
-                3. Si les deux méthodes échouent, utilisez 'schoolIdentityInfo' pour obtenir au moins
+                3. Si les méthodes précédentes échouent et si le modèle le permet, utilisez 'schoolIdentityInfo' pour obtenir au moins
                    des informations de base sur l'école.
                 4. En dernier recours, indiquez: "Je ne dispose pas de ces informations."
-                
+
+                Note: Certains modèles comme gemma:2b ne supportent pas les fonctions externes. Dans ce cas,
+                utilisez uniquement les informations du contexte RAG ou vos connaissances générales.
+
                 Pour la fonction webSearchEnsaBm, déterminez la catégorie la plus appropriée parmi:
                 'formation', 'admission', 'recherche', ou laissez vide pour la page d'accueil.
-                
+
                 Contexte RAG:
                 %s
                 """.formatted(context);
@@ -65,10 +68,23 @@ public class ChatAiService {
         // 4. Création de la prompt et appel avec les fonctions disponibles
         Prompt prompt = new Prompt(messages);
 
-        return chatClient.prompt(prompt)
-                // Les deux outils sont disponibles, l'agent choisira le plus approprié
-                .functions("webSearchEnsaBm", "schoolIdentityInfo")
-                .call()
-                .content();
+        try {
+            // Try to use functions if the model supports them
+            return chatClient.prompt(prompt)
+                    .functions("webSearchEnsaBm", "schoolIdentityInfo")
+                    .call()
+                    .content();
+        } catch (Exception e) {
+            if (e.getMessage() != null && e.getMessage().contains("does not support tools")) {
+                // If the model doesn't support tools, fall back to basic prompt
+                System.out.println("Model doesn't support tools, falling back to basic prompt");
+                return chatClient.prompt(prompt)
+                        .call()
+                        .content();
+            } else {
+                // Re-throw other exceptions
+                throw e;
+            }
+        }
     }
 }
